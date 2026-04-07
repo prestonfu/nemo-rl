@@ -1,0 +1,18 @@
+defaults:
+  - execution: local
+  - deployment: vllm
+  - ours_common
+  - _self_
+
+execution:
+  output_dir: a3_sft_results
+
+deployment:
+  checkpoint_path: /scratch/preston/sft/sft-nanov3-30BA3B-1n8g/step_1850/hf_consolidated
+  served_model_name: a3_sft
+
+export:
+  wandb:
+    entity: prestonfu
+    project: nemorl_evals
+    name: a3_sft

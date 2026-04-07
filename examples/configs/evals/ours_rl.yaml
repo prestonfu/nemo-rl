@@ -1,0 +1,18 @@
+defaults:
+  - execution: local
+  - deployment: vllm
+  - ours_common
+  - _self_
+
+execution:
+  output_dir: a3_rl_results
+
+deployment:
+  checkpoint_path: /scratch/preston/results/grpo_checkpoint_non_blocking/step_70/hf_consolidated
+  served_model_name: a3_rl
+
+export:
+  wandb:
+    entity: prestonfu
+    project: nemorl_evals
+    name: a3_rl

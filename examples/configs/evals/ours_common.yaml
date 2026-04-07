@@ -1,0 +1,46 @@
+deployment:
+  hf_model_handle: /checkpoint
+  tensor_parallel_size: 8
+  data_parallel_size: 1
+  port: 8002
+  extra_args: "--max-model-len 8192 --gpu-memory-utilization 0.9"
+
+evaluation:
+  nemo_evaluator_config:
+    config:
+      params:
+        max_retries: 5
+        request_timeout: 360
+        parallelism: 16
+        limit_samples: 50  # uncomment for quick testing
+        extra:
+          tokenizer: nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-Base-BF16
+          tokenizer_backend: huggingface
+  tasks:
+    - name: ifbench.ifbench
+    - name: livecodebench.livecodebench_0724_0125
+    - name: nemo_skills.ns_mmlu_pro
+      env_vars:
+        HF_TOKEN: HF_TOKEN
+        API_KEY: DUMMY_API_KEY
+      nemo_evaluator_config:
+        config:
+          params:
+            max_new_tokens: 4096
+    - name: scicode.scicode_aa_v2
+    - name: nemo_skills.ns_aime2025
+      env_vars:
+        HF_TOKEN: HF_TOKEN
+        API_KEY: DUMMY_API_KEY
+      nemo_evaluator_config:
+        config:
+          params:
+            max_new_tokens: 4096
+    - name: nemo_skills.ns_gpqa
+      env_vars:
+        HF_TOKEN: HF_TOKEN
+        API_KEY: DUMMY_API_KEY
+      nemo_evaluator_config:
+        config:
+          params:
+            max_new_tokens: 4096

@@ -1,0 +1,23 @@
+defaults:
+  - execution: local
+  - deployment: vllm
+  - ours_common
+  - _self_
+
+execution:
+  output_dir: a3_pretrain_results
+  mounts:
+    deployment:
+      /scratch/preston/sft/sft-nanov3-30BA3B-1n8g/step_1850/hf_consolidated/chat_template.jinja: /chat_templates/chat_template.jinja
+
+deployment:
+  hf_model_handle: nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-Base-BF16
+  checkpoint_path: /scratch/preston/sft/sft-nanov3-30BA3B-1n8g/step_1850/hf_consolidated
+  served_model_name: a3_pretrain
+  extra_args: "--max-model-len 8192 --gpu-memory-utilization 0.9 --chat-template /chat_templates/chat_template.jinja"
+
+export:
+  wandb:
+    entity: prestonfu
+    project: nemorl_evals
+    name: a3_pretrain

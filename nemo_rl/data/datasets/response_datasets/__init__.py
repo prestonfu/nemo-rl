@@ -36,6 +36,9 @@ from nemo_rl.data.datasets.response_datasets.oasst import OasstDataset
 from nemo_rl.data.datasets.response_datasets.openmathinstruct2 import (
     OpenMathInstruct2Dataset,
 )
+from nemo_rl.data.datasets.response_datasets.openmementos import (
+    OpenMementosDataset,
+)
 from nemo_rl.data.datasets.response_datasets.refcoco import RefCOCODataset
 from nemo_rl.data.datasets.response_datasets.response_dataset import ResponseDataset
 from nemo_rl.data.datasets.response_datasets.squad import SquadDataset
@@ -53,8 +56,10 @@ DATASET_REGISTRY = {
     "DeepScaler": DeepScalerDataset,
     "geometry3k": Geometry3KDataset,
     "HelpSteer3": HelpSteer3Dataset,
+    "Memento": OpenMementosDataset,
     "open_assistant": OasstDataset,
     "OpenMathInstruct-2": OpenMathInstruct2Dataset,
+    "OpenMementos": OpenMementosDataset,
     "refcoco": RefCOCODataset,
     "squad": SquadDataset,
     "tulu3_sft_mixture": Tulu3SftMixtureDataset,
@@ -106,6 +111,7 @@ __all__ = [
     "NemoGymDataset",
     "OasstDataset",
     "OpenAIFormatDataset",
+    "OpenMementosDataset",
     "OpenMathInstruct2Dataset",
     "RefCOCODataset",
     "ResponseDataset",

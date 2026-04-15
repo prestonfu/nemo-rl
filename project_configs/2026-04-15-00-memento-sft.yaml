@@ -1,0 +1,102 @@
+defaults: ../examples/configs/sft_openmathinstruct2.yaml
+run_name: 2026-04-15-02-memento-sft
+sft:
+  max_num_steps: 100000
+  val_micro_batch_size: 1
+  val_period: 50 # change
+
+checkpointing:
+  enabled: true
+  checkpoint_dir: /scratch/jennifer/results/${run_name}
+  save_period: 100 # change
+
+policy:
+  model_name: "Qwen/Qwen3-1.7B-Base"
+  tokenizer:
+    name: ${..model_name}
+    chat_template: memento/vllm/chat_templates/memento_nosys.jinja
+  train_global_batch_size: 512
+  train_micro_batch_size: 1
+  generation:
+    backend: "vllm"
+    max_new_tokens: 256
+    temperature: 1.0
+    top_p: 1.0
+    top_k: null
+    stop_token_ids: null
+    stop_strings: null
+    vllm_cfg:
+      max_model_len: 256
+    colocated:
+      enabled: true
+      resources:
+        gpus_per_node: null
+        num_nodes: null
+    vllm_kwargs:
+      block_masking_config:
+        enable: true
+        keep_last_n_blocks: 0
+        mask_delimiters: false
+        compact_on_summary_end: true
+        require_assistant_section: true
+      enable_prefix_caching: false
+  dtensor_cfg:
+    enabled: false
+  megatron_cfg:
+    distributed_data_parallel_config:
+      grad_reduce_in_fp32: true
+    enabled: true
+    optimizer:
+      adam_eps: 1.0e-08
+      clip_grad: 0
+      lr: 2.0e-05
+      min_lr: 2.0e-05
+      params_dtype: bfloat16
+      use_precision_aware_optimizer: false
+      weight_decay: 0.01
+    pipeline_dtype: bfloat16
+    scheduler:
+      end_weight_decay: 0.01
+      lr_warmup_init: 1.999999e-05
+      lr_warmup_iters: 1
+      start_weight_decay: 0.01
+    tensor_model_parallel_size: 4
+    freeze_moe_router: true
+    moe_router_dtype: fp64
+    moe_router_load_balancing_type: none
+    moe_router_bias_update_rate: 0.0
+    peft:
+      lora_dtype: null
+    env_vars:
+      PYTORCH_CUDA_ALLOC_CONF: expandable_segments:False
+  sequence_packing:
+    enabled: true
+  make_sequence_length_divisible_by: ${mul:16, ${policy.megatron_cfg.tensor_model_parallel_size}}
+  optimizer: null
+
+logger:
+  log_dir: /scratch/jennifer/logs/${run_name}
+  swanlab_enabled: false # Disable SwanLab logging
+  wandb:
+    project: ee194
+    name: ${run_name}
+
+  gpu_monitoring:
+    collection_interval: 10  # How often to collect GPU usage metrics (in seconds)
+    flush_interval: 10  # How often to flush GPU usage metrics to the loggers (in seconds)
+
+cluster:
+  num_nodes: 1
+  gpus_per_node: 8
+
+data:
+  add_generation_prompt: true
+  train:
+    dataset_name: OpenMementos
+    output_key: response
+    split: train
+    split_validation_size: 0.05
+    seed: ${sft.seed}
+  validation: null
+  default:
+    prompt_file: examples/prompts/cot.txt

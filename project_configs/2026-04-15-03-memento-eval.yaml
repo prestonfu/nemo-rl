@@ -1,0 +1,30 @@
+# Math evaluation Configuration
+defaults: "../examples/configs/evals/eval.yaml"
+
+# uv run examples/run_eval.py --config project_configs/2026-04-15-03-memento-eval.yaml
+
+# uv run --extra mcore python examples/converters/convert_megatron_to_hf.py \
+#   --config /scratch/jennifer/results/2026-04-15-02-memento-sft/step_200/config.yaml \
+#   --megatron-ckpt-path /scratch/jennifer/results/2026-04-15-02-memento-sft/step_200/policy/weights/iter_0000000 \
+#   --hf-ckpt-path /scratch/jennifer/results/2026-04-15-02-memento-sft/step_200/hf
+
+eval:
+  metric: "pass@k"
+
+generation:
+  model_name: /scratch/jennifer/results/2026-04-15-02-memento-sft/step_200/hf
+  tokenizer:
+        name: ${..model_name}
+
+data:
+  prompt_file: "examples/prompts/cot.txt"
+  dataset_name: "math"
+
+execution:
+  output_dir: /scratch/jennifer/results/2026-04-15-02-memento-sft/
+
+export:
+  wandb:
+    entity: jnzhao3
+    project: qwen_evals
+    name: base_math

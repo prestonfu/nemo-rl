@@ -49,7 +49,7 @@ policy:
     optimizer:
       adam_eps: 1.0e-08
       clip_grad: 0
-      lr: 2.0e-05
+      lr: 1.0e-06 # changed
       min_lr: 2.0e-05
       params_dtype: bfloat16
       use_precision_aware_optimizer: false

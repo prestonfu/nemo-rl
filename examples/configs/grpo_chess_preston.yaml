@@ -1,23 +1,22 @@
-# GRPO Algorithm Configuration for training Nano v3
+# GRPO chess training config — Nano v3 model with chess environment
 grpo:
   num_prompts_per_step: 4
   num_generations_per_prompt: 8
-  # num_val_generations_per_prompt: 4
-  max_rollout_turns: 1 # for multi-turn rollouts. Math Environments just have 1 turn (answering the question)
+  num_val_generations_per_prompt: 4
+  max_rollout_turns: 1
   max_num_epochs: 1
   max_num_steps: 1000000
   normalize_rewards: true
   use_leave_one_out_baseline: true
-  # val_period: 5
-  # val_at_start: False
-  # val_at_end: False
-  # overlong_filtering: true
-  # max_val_samples: null
-  # val_batch_size: 256
+  val_period: 0
+  val_at_start: False
+  val_at_end: False
+  overlong_filtering: true
+  max_val_samples: null
+  val_batch_size: 256
   seed: 42
   async_grpo:
-    enabled: false # Set to true to enable async training mode
-    # Max age (in training steps) for trajectories used in training
+    enabled: false
     max_trajectory_age_steps: 1
 
   batch_multiplier: 1
@@ -37,7 +36,6 @@ loss_fn:
   ratio_clip_min: 0.2
   ratio_clip_max: 0.28
   ratio_clip_c: null
-  # (default off) loss formulation improvements (docs/guides/grpo.md#loss)
   use_on_policy_kl_approximation: True
   use_importance_sampling_correction: True
   sequence_level_importance_ratios: False
@@ -46,25 +44,24 @@ loss_fn:
 
 checkpointing:
   enabled: true
-  checkpoint_dir: "/scratch/jennifer/results/grpo"
-  metric_name: "val:total_reward/mean"
+  checkpoint_dir: "/scratch/preston/results/grpo-chess"
+  metric_name: null
   higher_is_better: true
   keep_top_k: 1000000
-  save_period: 10
-  checkpoint_must_save_by: "00:03:40:00"
+  save_period: 100
+  checkpoint_must_save_by: "99:00:00:00"
   save_optimizer: true
 
 policy:
-  model_name: "/scratch/jennifer/sft/sft-nanov3-30BA3B-1n8g/step_1850/hf_consolidated"
+  model_name: "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16"
   tokenizer:
-    name: ${policy.model_name} ## specify if you'd like to use a tokenizer different from the model's default
+    name: ${policy.model_name}
   train_global_batch_size: 32
   train_micro_batch_size: 1
-  generation_batch_size: 64 # Only used when generating using HF backend
   logprob_batch_size: 1
   max_total_sequence_length: 4096
   precision: "bfloat16"
-  logprob_chunk_size: 2048
+  logprob_chunk_size: 1024
 
   dtensor_cfg:
     _v2: true
@@ -90,7 +87,6 @@ policy:
     empty_unused_memory_level: 1
     activation_checkpointing: true
     bias_activation_fusion: False
-      # converter_type: "Qwen2ForCausalLM"
     tensor_model_parallel_size: 8
     expert_tensor_parallel_size: 8
     expert_model_parallel_size: 1
@@ -101,16 +97,14 @@ policy:
     pipeline_dtype: ${policy.precision}
     sequence_parallel: true
     freeze_moe_router: true
-      # moe_router_dtype: "fp64"
     moe_router_dtype: "fp32"
-    moe_router_load_balancing_type: "none" # "seq_aux_loss" causes logprob error divergence for grpo
+    moe_router_load_balancing_type: "none"
     moe_router_bias_update_rate: 1e-3
     moe_permute_fusion: true
     moe_enable_deepep: false
     moe_token_dispatcher_type: "alltoall"
     moe_aux_loss_coeff: 0.0
     moe_router_enable_expert_bias: true
-    #gives ~20% training perf speedup with sequence packing
     apply_rope_fusion: True
     defer_fp32_logits: True
     track_moe_metrics: True
@@ -125,21 +119,13 @@ policy:
       bf16: true
       fp16: false
       params_dtype: "float32"
-
-      #adam
       adam_beta1: 0.9
       adam_beta2: 0.999
       adam_eps: 1e-8
-
-      #sgd
       sgd_momentum: 0.9
-
       clip_grad: ${policy.max_grad_norm}
-
-      #distributed optimizer
       use_distributed_optimizer: true
       use_precision_aware_optimizer: true
-
       optimizer_cpu_offload: False
       optimizer_offload_fraction: 0
 
@@ -162,8 +148,6 @@ policy:
 
     env_vars: null
 
-  # See docs/design-docs/sequence-packing-and-dynamic-batching.md
-  # for more details on dynamic batching and sequence packing.
   dynamic_batching:
     enabled: False
     train_mb_tokens: ${mul:${policy.max_total_sequence_length}, ${policy.train_micro_batch_size}}
@@ -177,12 +161,10 @@ policy:
     algorithm: "modified_first_fit_decreasing"
     sequence_length_round: 64
 
-  # makes the training sequence length divisible by the tensor parallel size
-  # this is useful for sequence parallel training
   make_sequence_length_divisible_by: 8
   max_grad_norm: 1.0
 
-  optimizer: null # remove default FSDP optimizer
+  optimizer: null
   scheduler: null
 
   offload_optimizer_for_logprob: False
@@ -190,106 +172,79 @@ policy:
   generation:
     backend: "vllm"
     max_new_tokens: ${policy.max_total_sequence_length}
+    thinking_token_budget: 3072  # force </think> after this many generated tokens
     temperature: 1.0
     top_p: 1.0
     top_k: null
     stop_token_ids: null
     stop_strings: null
     vllm_cfg:
-      # NB: can re-enable prefix cache on vllm >= 0.11.2.
-      # enable_prefix_caching: false
       async_engine: true
       kv_cache_dtype: auto
       precision: ${policy.precision}
       tensor_parallel_size: 8
       pipeline_parallel_size: 1
-      expert_parallel_size: 1  # When EP > 1, EP must be a multiple of TP since vLLM's EP = DP * TP
-      gpu_memory_utilization: 0.5
+      expert_parallel_size: 1
+      gpu_memory_utilization: 0.4
       max_model_len: ${policy.max_total_sequence_length}
-      # when enforce_eager is False, it is optional to set ++policy.generation.vllm_kwargs.compilation_config.backend=eager for better accuracy,
-      # with the flag, vllm will use the custom CUDA kernels instead of the Triton kernels generated by torch.compile
-      # for more details, see convergence issue https://github.com/NVIDIA-NeMo/RL/issues/998
       enforce_eager: False
       use_deep_gemm: False
       num_last_layers_in_bf16: 0
       num_first_layers_in_bf16: 0
       expose_http_server: true
-
     vllm_kwargs:
       mamba_ssm_cache_dtype: "float32"
       compilation_config:
-        # when enforce_eager is False, set ++policy.generation.vllm_kwargs.compilation_config.backend=eager for better accuracy,
-        # with the flag, vllm will use the custom CUDA kernels instead of the Triton kernels generated by torch.compile
-        # for more details, see convergence issue https://github.com/NVIDIA-NeMo/RL/issues/998
         backend: eager
     colocated:
-      # true: generation shares training GPUs
-      # false: uses dedicated generation resources
       enabled: true
-      # only relevant when enabled is false
       resources:
-        gpus_per_node: null # Decides num gpus to be dedicated to generation when there is one node in the cluster i.e cluster.num_nodes == 1
-        num_nodes: null # Decides number of nodes to be dedicated to generation
+        gpus_per_node: null
+        num_nodes: null
 
 data:
   max_input_seq_length: null
   shuffle: False
+  shuffle_positions: true
   num_workers: 1
   use_multiple_dataloader: false
-
+  add_system_prompt: false
+  task_name: "chess_one_step"
+  prompt_style: "guided"  # one of: guided, plain, compact, json
+  prompt_template: null
   train:
-    data_path: "/scratch/jennifer/nemotron_rl_data/blend/train.jsonl"
-  validation:
-    data_path: "/scratch/jennifer/nemotron_rl_data/blend/validation.jsonl"
+    data_path: "examples/data/chess_positions_train.jsonl"
+  validation: null
   default:
-    dataset_name: NemoGymDataset
-    env_name: "nemo_gym"
-    prompt_file: null
-    system_prompt_file: null
-    processor: "nemo_gym_data_processor"
+    env_name: "chess"
 
 env:
-  should_use_nemo_gym: true
-  nemo_gym:
-    config_paths:
-    - responses_api_models/vllm_model/configs/vllm_model_for_training.yaml  # Required! And it must be *for_training
-    - resources_servers/math_with_judge/configs/math_with_judge.yaml
-    - resources_servers/code_gen/configs/code_gen.yaml
-    - resources_servers/workplace_assistant/configs/workplace_assistant.yaml
-    - resources_servers/mcqa/configs/mcqa.yaml
-    - resources_servers/instruction_following/configs/instruction_following.yaml
-    - resources_servers/structured_outputs/configs/structured_outputs_json.yaml
-    math_with_judge:
-      resources_servers:
-        math_with_judge:
-          judge_model_server:
-            name: policy_model
-          should_use_judge: false
-    code_gen:
-      resources_servers:
-        code_gen:
-          num_processes: 1024
-          unit_test_timeout_secs: 10
-          debug: false
+  chess:
+    stockfish_path: "/root/stockfish"
+    analysis_depth: 15
+    illegal_move_penalty: 1000.0
+    mate_bonus: 1000.0
 
 logger:
-  log_dir: "/scratch/jennifer/logs"  # Base directory for all logs
-  num_val_samples_to_print: 0 # Number of validation samples to pretty print on terminal
+  log_dir: "/scratch/preston/logs"
+  num_val_samples_to_print: 0
+  num_train_samples_to_print: 1
   wandb_enabled: true
   tensorboard_enabled: false
-  mlflow_enabled: false  # Disable MLflow logging
-  monitor_gpus: true  # If true, will monitor GPU usage and log to wandb and/or tensorboard
-  swanlab_enabled: false # Disable SwanLab logging
+  mlflow_enabled: false
+  monitor_gpus: true
+  swanlab_enabled: false
   wandb:
     project: "nemo-rl"
-    name: "grpo"
+    name: "grpo-chess"
+    entity: "prestonfu"
   tensorboard: {}
   mlflow:
     experiment_name: "grpo-dev"
     run_name: "grpo-dev-logger"
   gpu_monitoring:
-    collection_interval: 10  # How often to collect GPU usage metrics (in seconds)
-    flush_interval: 10  # How often to flush GPU usage metrics to the loggers (in seconds)
+    collection_interval: 10
+    flush_interval: 10
 
 cluster:
   gpus_per_node: 8

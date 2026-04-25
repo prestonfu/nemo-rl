@@ -100,6 +100,11 @@ class ChessEnvironment(EnvironmentInterface[ChessEnvironmentMetadata]):
 
         self.engine = chess.engine.SimpleEngine.popen_uci(self.stockfish_path)
 
+        from transformers import AutoTokenizer
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16", trust_remote_code=True
+        )
+
     def _extract_move(self, response: str) -> str | None:
         for pattern in (
             self.XML_MOVE_PATTERN,
@@ -165,6 +170,16 @@ class ChessEnvironment(EnvironmentInterface[ChessEnvironmentMetadata]):
             eval_before = self._evaluate(board, player_to_move)
             legal_move = self._parse_legal_move(board, extracted_move)
 
+            think_end = assistant_response.find("</think>")
+            if think_end != -1:
+                thinking_text = assistant_response[: think_end + len("</think>")]
+                move_text = assistant_response[think_end + len("</think>") :]
+            else:
+                thinking_text = ""
+                move_text = assistant_response
+            thinking_tokens = len(self.tokenizer.encode(thinking_text, add_special_tokens=False))
+            move_tokens = len(self.tokenizer.encode(move_text, add_special_tokens=False))
+
             if legal_move is None:
                 reward = -self.illegal_move_penalty
                 observations.append(
@@ -187,6 +202,8 @@ class ChessEnvironment(EnvironmentInterface[ChessEnvironmentMetadata]):
                         "eval_after": eval_before,
                         "is_legal_move": False,
                         "delivered_checkmate": False,
+                        "thinking_tokens": thinking_tokens,
+                        "move_tokens": move_tokens,
                     }
                 )
                 continue
@@ -222,6 +239,8 @@ class ChessEnvironment(EnvironmentInterface[ChessEnvironmentMetadata]):
                     "eval_after": eval_after,
                     "is_legal_move": True,
                     "delivered_checkmate": delivered_checkmate,
+                    "thinking_tokens": thinking_tokens,
+                    "move_tokens": move_tokens,
                 }
             )
 
@@ -240,9 +259,40 @@ class ChessEnvironment(EnvironmentInterface[ChessEnvironmentMetadata]):
     def global_post_process_and_metrics(
         self, batch: BatchedDataDict[Any]
     ) -> tuple[BatchedDataDict[Any], dict[str, float]]:
-        rewards = batch.get("total_reward", batch["rewards"]).float()
-        illegal_rate = (rewards == -self.illegal_move_penalty).float().mean().item()
+        rewards = batch.get("total_reward", batch.get("rewards"))
+        if rewards is None or len(rewards) == 0:
+            return batch, {}
+        rewards = rewards.float()
+        n = len(rewards)
+
+        env_infos: list[ChessEnvironmentMetadata] = batch.get("extra_env_info", [{}] * n)
+        legal_flags = [bool(info.get("is_legal_move", False)) for info in env_infos]
+        checkmate_flags = [bool(info.get("delivered_checkmate", False)) for info in env_infos]
+        eval_deltas = [
+            float(info["eval_after"]) - float(info["eval_before"])
+            for info in env_infos
+            if info.get("eval_after") is not None and info.get("eval_before") is not None
+        ]
+
+        truncated = batch.get("truncated")
+        if truncated is not None:
+            is_max_tokens = [bool(t) for t in truncated]
+        else:
+            is_max_tokens = [False] * n
+
+        thinking_tokens = [int(info.get("thinking_tokens", 0)) for info in env_infos]
+        move_tokens = [int(info.get("move_tokens", 0)) for info in env_infos]
+
+        legal_rate = sum(legal_flags) / n
+        avg_centipawn_delta = sum(eval_deltas) / len(eval_deltas) if eval_deltas else 0.0
+
         return batch, {
-            "avg_chess_reward": rewards.mean().item() if len(rewards) > 0 else 0.0,
-            "illegal_move_rate": illegal_rate if len(rewards) > 0 else 0.0,
+            "env/avg_reward": rewards.mean().item(),
+            "env/legal_move_rate": legal_rate,
+            "env/illegal_move_rate": 1.0 - legal_rate,
+            "env/checkmate_rate": sum(checkmate_flags) / n,
+            "env/avg_centipawn_delta": avg_centipawn_delta,
+            "env/avg_thinking_tokens": sum(thinking_tokens) / n,
+            "env/avg_move_tokens": sum(move_tokens) / n,
+            "env/truncated_rate": sum(is_max_tokens) / n,
         }

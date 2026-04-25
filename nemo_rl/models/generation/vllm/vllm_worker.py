@@ -543,6 +543,11 @@ class BaseVllmGenerationWorker:
             **vllm_kwargs,
         )
 
+        if self.cfg.get("thinking_token_budget"):
+            llm_kwargs["logits_processors"] = [
+                "nemo_rl.models.generation.vllm.think_budget_logits_processor:ThinkBudgetLogitsProcessor"
+            ]
+
         self._create_engine(llm_kwargs)
 
         # will be initialized in post_init
@@ -585,6 +590,12 @@ class BaseVllmGenerationWorker:
             max_new_tokens if max_new_tokens is not None else self.cfg["max_new_tokens"]
         )
 
+        extra_args = {}
+        thinking_token_budget = self.cfg.get("thinking_token_budget")
+        if thinking_token_budget:
+            extra_args["thinking_token_budget"] = thinking_token_budget
+            extra_args["end_think_token_id"] = self.cfg.get("end_think_token_id", 13)
+
         return self.SamplingParams(
             temperature=temperature,
             top_p=self.cfg["top_p"],
@@ -594,6 +605,7 @@ class BaseVllmGenerationWorker:
             stop_token_ids=self.cfg["stop_token_ids"],
             stop=stop_strings,
             include_stop_str_in_output=True,
+            **({"extra_args": extra_args} if extra_args else {}),
         )
 
     def start_gpu_profiling(self) -> None:

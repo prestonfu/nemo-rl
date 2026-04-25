@@ -14,6 +14,7 @@
 
 from nemo_rl.data import ResponseDatasetConfig
 from nemo_rl.data.datasets.response_datasets.aime24 import AIME2024Dataset
+from nemo_rl.data.datasets.response_datasets.aime25 import AIME2025Dataset
 from nemo_rl.data.datasets.response_datasets.clevr import CLEVRCoGenTDataset
 from nemo_rl.data.datasets.response_datasets.daily_omni import DailyOmniDataset
 from nemo_rl.data.datasets.response_datasets.dapo_math import (
@@ -38,6 +39,9 @@ from nemo_rl.data.datasets.response_datasets.oasst import OasstDataset
 from nemo_rl.data.datasets.response_datasets.openmathinstruct2 import (
     OpenMathInstruct2Dataset,
 )
+from nemo_rl.data.datasets.response_datasets.openmementos import (
+    OpenMementosDataset,
+)
 from nemo_rl.data.datasets.response_datasets.refcoco import RefCOCODataset
 from nemo_rl.data.datasets.response_datasets.response_dataset import ResponseDataset
 from nemo_rl.data.datasets.response_datasets.squad import SquadDataset
@@ -46,6 +50,7 @@ from nemo_rl.data.datasets.response_datasets.tulu3 import Tulu3SftMixtureDataset
 DATASET_REGISTRY = {
     # built-in datasets
     "AIME2024": AIME2024Dataset,
+    "AIME2025-I": AIME2025Dataset,
     "clevr-cogent": CLEVRCoGenTDataset,
     "daily-omni": DailyOmniDataset,
     "general-conversation-jsonl": GeneralConversationsJsonlDataset,
@@ -54,8 +59,10 @@ DATASET_REGISTRY = {
     "DeepScaler": DeepScalerDataset,
     "geometry3k": Geometry3KDataset,
     "HelpSteer3": HelpSteer3Dataset,
+    "Memento": OpenMementosDataset,
     "open_assistant": OasstDataset,
     "OpenMathInstruct-2": OpenMathInstruct2Dataset,
+    "OpenMementos": OpenMementosDataset,
     "refcoco": RefCOCODataset,
     "squad": SquadDataset,
     "tulu3_sft_mixture": Tulu3SftMixtureDataset,
@@ -95,6 +102,7 @@ def load_response_dataset(data_config: ResponseDatasetConfig):
 
 __all__ = [
     "AIME2024Dataset",
+    "AIME2025Dataset",
     "CLEVRCoGenTDataset",
     "DailyOmniDataset",
     "GeneralConversationsJsonlDataset",
@@ -108,6 +116,7 @@ __all__ = [
     "NemotronCascade2SFTMathDataset",
     "OasstDataset",
     "OpenAIFormatDataset",
+    "OpenMementosDataset",
     "OpenMathInstruct2Dataset",
     "RefCOCODataset",
     "ResponseDataset",

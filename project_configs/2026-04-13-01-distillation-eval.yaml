@@ -1,0 +1,41 @@
+# Math evaluation Configuration
+defaults: "../examples/configs/evals/eval.yaml"
+
+# uv run --extra mcore python examples/converters/convert_megatron_to_hf.py \
+#   --config /scratch/jennifer/results/2026-04-13-01-distillation/step_20/config.yaml \
+#   --megatron-ckpt-path /scratch/jennifer/results/2026-04-13-01-distillation/step_20/policy/weights/iter_0000000 \
+#   --hf-ckpt-path /scratch/jennifer/results/2026-04-13-01-distillation/step_20/hf
+
+# uv run examples/run_eval.py --config project_configs/2026-04-13-distillation-eval.yaml
+
+eval:
+  metric: "pass@k"
+
+generation:
+  model_name: "/scratch/jennifer/results/2026-04-13-01-distillation/step_20/hf"
+  tokenizer:
+        name: ${..model_name}
+
+data:
+  prompt_file: "examples/prompts/cot.txt"
+  dataset_name: "math" # "AIME2025-I" # "math"
+
+execution:
+  output_dir: /scratch/jennifer/results/2026-04-13-01-distillation-eval/
+
+export:
+  wandb:
+    entity: jnzhao3
+    project: ee194
+    name: 2026-04-13-01-distillation-eval
+
+# after 20 steps of distillation... but it gets worse
+
+# ============================================================
+# model_name='hf' dataset_name='math'
+# max_new_tokens=2048 temperature=0.0 top_p=1.0 top_k=-1 seed=42
+
+# metric=pass@1 num_tests_per_prompt=1
+
+# score=0.4276 (2138.0/5000)
+# ============================================================

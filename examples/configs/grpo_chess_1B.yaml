@@ -1,0 +1,93 @@
+defaults: "grpo_math_1B.yaml"
+
+grpo:
+  num_prompts_per_step: 16
+  num_generations_per_prompt: 8
+  max_rollout_turns: 1
+  max_num_steps: 1000
+  max_num_epochs: 1
+  val_period: 0
+  val_at_start: false
+  val_at_end: false
+  max_val_samples: 64
+
+checkpointing:
+  enabled: false
+  checkpoint_dir: "results/grpo-chess"
+
+policy:
+  model_name: "Qwen/Qwen2.5-1.5B-Instruct"
+  tokenizer:
+    name: ${policy.model_name}
+    chat_template_kwargs: null
+  max_total_sequence_length: 1024
+
+  dtensor_cfg:
+    _v2: true
+    enabled: true
+    cpu_offload: false
+    sequence_parallel: false
+    activation_checkpointing: false
+    tensor_parallel_size: 1
+    context_parallel_size: 1
+
+  generation:
+    backend: "vllm"
+    max_new_tokens: 160
+    temperature: 1.0
+    top_p: 1.0
+    top_k: null
+    stop_token_ids: null
+    stop_strings: null
+    vllm_cfg:
+      async_engine: false
+      precision: ${policy.precision}
+      kv_cache_dtype: "auto"
+      tensor_parallel_size: 1
+      pipeline_parallel_size: 1
+      expert_parallel_size: 1
+      gpu_memory_utilization: 0.6
+      max_model_len: ${policy.max_total_sequence_length}
+      enforce_eager: false
+      enable_vllm_metrics_logger: true
+      vllm_metrics_logger_interval: 0.5
+    colocated:
+      enabled: true
+      resources:
+        gpus_per_node: null
+        num_nodes: null
+
+data:
+  max_input_seq_length: ${policy.max_total_sequence_length}
+  shuffle: false
+  shuffle_positions: true
+  num_workers: 1
+  use_multiple_dataloader: false
+  add_system_prompt: false
+  task_name: "chess_one_step"
+  prompt_template: null
+  train:
+    data_path: "examples/data/chess_positions_train.jsonl"
+  validation: null
+  default:
+    env_name: "chess"
+
+env:
+  chess:
+    stockfish_path: "./stockfish"
+    analysis_depth: 15
+    illegal_move_penalty: 1.0
+    mate_bonus: 100.0
+
+logger:
+  log_dir: "logs"
+  num_val_samples_to_print: 0
+  wandb_enabled: false
+  tensorboard_enabled: false
+  mlflow_enabled: false
+  swanlab_enabled: false
+  monitor_gpus: true
+
+cluster:
+  gpus_per_node: 8
+  num_nodes: 1

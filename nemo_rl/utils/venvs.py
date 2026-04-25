@@ -16,6 +16,7 @@ import os
 import shlex
 import shutil
 import subprocess
+import sys
 import time
 from functools import lru_cache
 from pathlib import Path
@@ -77,7 +78,17 @@ def create_local_venv(
     logger.info(f"Creating new venv at {venv_path}")
 
     # Create the virtual environment
-    uv_venv_cmd = ["uv", "venv", "--allow-existing", venv_path]
+    # Ray workers must match the cluster Python minor version exactly.
+    # Pin uv venv creation to the current interpreter so we don't accidentally
+    # create a worker env with a different Python (for example 3.13 vs 3.12).
+    uv_venv_cmd = [
+        "uv",
+        "venv",
+        "--allow-existing",
+        "--python",
+        sys.executable,
+        venv_path,
+    ]
     subprocess.run(uv_venv_cmd, check=True)
 
     # Execute the command with the virtual environment

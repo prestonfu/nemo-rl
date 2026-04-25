@@ -1,0 +1,47 @@
+# Math evaluation Configuration
+defaults: "../examples/configs/evals/eval.yaml"
+
+# uv run examples/run_eval.py --config project_configs/2026-04-13-02-base-eval.yaml
+
+eval:
+  metric: "pass@k"
+
+generation:
+  model_name: "Qwen/Qwen3-4B" # "Qwen/Qwen3-1.7B-Base"
+  tokenizer:
+        name: ${..model_name}
+
+data:
+  prompt_file: "examples/prompts/cot.txt"
+  dataset_name: "math"
+
+execution:
+  output_dir: /scratch/jennifer/results/2026-04-13-02-base-eval/
+
+export:
+  wandb:
+    entity: jnzhao3
+    project: qwen_evals
+    name: base_math
+
+# base student
+
+# ============================================================
+# model_name='Qwen3-1.7B-Base' dataset_name='math'
+# max_new_tokens=2048 temperature=0.0 top_p=1.0 top_k=-1 seed=42
+
+# metric=pass@1 num_tests_per_prompt=1
+
+# score=0.5198 (2599.0/5000)
+# ============================================================
+
+# teacher
+
+# ============================================================
+# model_name='Qwen3-4B' dataset_name='math'
+# max_new_tokens=2048 temperature=0.0 top_p=1.0 top_k=-1 seed=42
+
+# metric=pass@1 num_tests_per_prompt=1
+
+# score=0.6194 (3097.0/5000)
+# ============================================================

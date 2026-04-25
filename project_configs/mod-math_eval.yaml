@@ -1,0 +1,18 @@
+# Math evaluation Configuration
+defaults: "examples/configs/evals/eval.yaml"
+
+generation:
+  model_name: "Qwen/Qwen3-1.7B-Base"
+
+data:
+  prompt_file: "examples/prompts/math.txt"
+  dataset_name: "math"
+
+execution:
+  output_dir: qwen_base_math
+
+export:
+  wandb:
+    entity: jnzhao3
+    project: qwen_evals
+    name: base_math

@@ -1,0 +1,70 @@
+defaults: ../examples/configs/distillation_math.yaml
+
+run_name: 2026-04-13-01-distillation
+
+distillation:
+  num_prompts_per_step: 32
+  max_num_steps: 20
+  val_batch_size: 32
+  val_period: 10
+  max_val_samples: 256
+
+loss_fn:
+  kl_type: reverse
+
+checkpointing:
+  enabled: true
+  checkpoint_dir: /scratch/jennifer/results/${run_name}
+  save_optimizer: false
+
+policy:
+  model_name: "Qwen/Qwen3-1.7B-Base"
+  train_global_batch_size: 32
+  train_micro_batch_size: 1
+  generation_batch_size: 32
+  offload_optimizer_for_logprob: false
+  dtensor_cfg:
+    enabled: false
+  dynamic_batching:
+    enabled: false
+  sequence_packing:
+    enabled: true
+  make_sequence_length_divisible_by: ${mul:${mul:${.megatron_cfg.tensor_model_parallel_size},
+    ${.megatron_cfg.context_parallel_size}}, 2}
+  megatron_cfg:
+    enabled: true
+
+teacher:
+  model_name: "Qwen/Qwen3-4B"
+  dtensor_cfg:
+    enabled: false
+  dynamic_batching:
+    enabled: false
+  sequence_packing:
+    enabled: true
+  megatron_cfg:
+    enabled: true
+    tensor_model_parallel_size: 4
+    context_parallel_size: 1
+  make_sequence_length_divisible_by: 4
+
+data:
+    max_input_seq_length: ${policy.max_total_sequence_length} # upper bound, real truncation occurs at vllm.max_model_len
+    shuffle: true
+    # dataset
+    train:
+        dataset_name: DeepScaler
+    validation:
+        dataset_name: "AIME2025-I"
+        repeat: 16
+    # default settings for all datasets
+    default:
+        prompt_file: "examples/prompts/cot.txt"
+        system_prompt_file: null
+        env_name: "math"
+
+logger:
+  log_dir: /scratch/logs/${run_name}
+  wandb:
+    project: ee194
+    name: ${run_name}

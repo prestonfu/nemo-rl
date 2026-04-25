@@ -1,0 +1,53 @@
+# Math evaluation Configuration
+defaults: "../examples/configs/evals/eval.yaml"
+
+# uv run examples/run_eval.py --config project_configs/2026-04-13-02-base-eval.yaml
+
+eval:
+  metric: "pass@k"
+
+generation:
+  model_name: "Qwen/Qwen3-1.7B-Base" # "Qwen/Qwen3-4B"
+  tokenizer:
+        name: ${..model_name}
+
+data:
+  prompt_file: "examples/prompts/brainstorm.txt"
+  dataset_name: "math"
+
+execution:
+  output_dir: /scratch/jennifer/results/2026-04-14-00-base-eval/
+
+export:
+  wandb:
+    entity: jnzhao3
+    project: qwen_evals
+    name: base_math
+
+# Think step-by-step to solve the following problem. Output your final answer inside of \\boxed{{}} tags.:
+# {}
+
+# As a first step, list all possibly relevant patterns, theorems, concepts, and cases. Let's think step-by-step
+
+# ============================================================
+# model_name='Qwen3-1.7B-Base' dataset_name='math'
+# max_new_tokens=2048 temperature=0.0 top_p=1.0 top_k=-1 seed=42
+
+# metric=pass@1 num_tests_per_prompt=1
+
+# score=0.4936 (2468.0/5000)
+# ============================================================
+
+# Think step-by-step to solve the following problem. Output your final answer inside of \\boxed{{}} tags.:
+# {}
+
+# As a first step, list all relevant and related concepts. Let's think step-by-step
+
+# ============================================================
+# model_name='Qwen3-1.7B-Base' dataset_name='math'
+# max_new_tokens=2048 temperature=0.0 top_p=1.0 top_k=-1 seed=42
+
+# metric=pass@1 num_tests_per_prompt=1
+
+# score=0.4726 (2363.0/5000)
+# ============================================================

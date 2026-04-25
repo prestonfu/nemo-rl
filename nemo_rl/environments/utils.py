@@ -41,6 +41,9 @@ ENV_REGISTRY: Dict[str, EnvRegistryEntry] = {
     "code": {
         "actor_class_fqn": "nemo_rl.environments.code_environment.CodeEnvironment",
     },
+    "chess": {
+        "actor_class_fqn": "nemo_rl.environments.chess_environment.ChessEnvironment"
+    },
     "reward_model": {
         "actor_class_fqn": "nemo_rl.environments.reward_model_environment.RewardModelEnvironment",
     },

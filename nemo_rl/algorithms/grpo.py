@@ -1576,7 +1576,45 @@ def grpo_train(
                     metrics_logging_data["mean_gen_tokens_per_sample"] = (
                         rollout_metrics["mean_gen_tokens_per_sample"]
                     )
+
+                    for env in task_to_env.values():
+                        _, env_metrics = ray.get(
+                            env.global_post_process_and_metrics.remote(repeated_batch)
+                        )
+                        rollout_metrics.update(env_metrics)
+
                     logger.log_metrics(rollout_metrics, total_steps + 1, prefix="train")
+
+                    num_train_samples_to_print = master_config["logger"].get(
+                        "num_train_samples_to_print", 0
+                    )
+                    if num_train_samples_to_print > 0 and total_steps % 10 == 0:
+                        rewards_list = repeated_batch["total_reward"].tolist()
+                        print_message_log_samples(
+                            repeated_batch["message_log"],
+                            rewards_list,
+                            num_samples=num_train_samples_to_print,
+                            step=total_steps + 1,
+                        )
+                        env_stat_keys = [k for k in rollout_metrics if k.startswith("env/")]
+                        if env_stat_keys:
+                            print("  📊 Env stats:", {k: f"{rollout_metrics[k]:.4f}" for k in env_stat_keys})
+                        if (
+                            logger.wandb_logger is not None
+                            and logger.wandb_logger.run is not None
+                        ):
+                            import wandb as _wandb
+                            table = _wandb.Table(columns=["step", "reward", "prompt", "response"])
+                            msg_logs = repeated_batch["message_log"]
+                            n_log = min(num_train_samples_to_print, len(msg_logs))
+                            for i in range(n_log):
+                                msgs = msg_logs[i]
+                                prompt = "\n\n".join(m["content"] for m in msgs if m["role"] != "assistant")
+                                response = "\n\n".join(m["content"] for m in msgs if m["role"] == "assistant")
+                                table.add_data(total_steps + 1, rewards_list[i], prompt, response)
+                            logger.wandb_logger.run.log(
+                                {"train/rollout_samples": table}, step=total_steps + 1
+                            )
 
                 repeated_batch = scale_rewards(
                     repeated_batch, master_config["grpo"]["reward_scaling"]

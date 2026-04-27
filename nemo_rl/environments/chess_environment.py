@@ -211,7 +211,7 @@ class ChessEnvironment(EnvironmentInterface[ChessEnvironmentMetadata]):
             board.push(legal_move)
             eval_after = self._evaluate(board, player_to_move)
             delivered_checkmate = board.is_checkmate()
-            reward = eval_after - eval_before
+            reward = max(-500.0, min(500.0, round((eval_after - eval_before) / 100) * 100))
             if delivered_checkmate:
                 reward += self.mate_bonus
 

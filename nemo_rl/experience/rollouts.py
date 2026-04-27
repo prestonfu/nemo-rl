@@ -813,12 +813,13 @@ async def run_sample_multi_turn_rollout(
         env_token_count += len(tokenized_obs)
         token_count += len(tokenized_obs)
 
-        # Update sample state for next turn
+        # Update extra_env_info for all turns (including terminal).
+        if env_output.metadata[0] is not None:
+            current_extra_env_info = env_output.metadata[0]
+        # Update stop strings only for continuing turns.
         if not terminated and not truncated:
             if env_output.next_stop_strings[0] is not None:
                 current_stop_strings = env_output.next_stop_strings[0]
-            if env_output.metadata[0] is not None:
-                current_extra_env_info = env_output.metadata[0]
 
     # Check if max turns reached
     if turn_count >= max_rollout_turns:

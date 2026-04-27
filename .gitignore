@@ -58,3 +58,6 @@ core
 memento
 
 stockfish
+a3_pretrain_results
+a3_rl_results
+a3_sft_results

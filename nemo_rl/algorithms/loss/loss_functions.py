@@ -594,11 +594,15 @@ class ClippedPGLossFn(LossFunction):
                 probs_ratio_max = masked_ratios.max().item()
                 probs_ratio_clamped_min = masked_ratios_clamped.min().item()
                 probs_ratio_clamped_max = masked_ratios_clamped.max().item()
+                clip_low = (masked_ratios < 1.0 - self.ratio_clip_min).float().mean().item()
+                clip_high = (masked_ratios > 1.0 + self.ratio_clip_max).float().mean().item()
+                clip_frac = clip_low + clip_high
             else:
                 probs_ratio_min = float("inf")
                 probs_ratio_max = float("-inf")
                 probs_ratio_clamped_min = float("inf")
                 probs_ratio_clamped_max = float("-inf")
+                clip_low = clip_high = clip_frac = 0.0
 
         # If you provided a global_valid_{seqs/toks}, all metrics here are globally normalized
         # by either sequence or token count, depending on particular metric.
@@ -613,6 +617,9 @@ class ClippedPGLossFn(LossFunction):
                 "probs_ratio_max": probs_ratio_max,
                 "probs_ratio_clamped_min": probs_ratio_clamped_min,
                 "probs_ratio_clamped_max": probs_ratio_clamped_max,
+                "clip_low": clip_low,
+                "clip_high": clip_high,
+                "clip_frac": clip_frac,
                 "kl_penalty": kl.item() / self.reference_policy_kl_penalty if kl else 0,
                 "token_mult_prob_error": mult_prob_error,
                 "gen_kl_error": gen_kl_error,

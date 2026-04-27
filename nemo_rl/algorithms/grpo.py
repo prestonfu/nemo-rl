@@ -1349,6 +1349,12 @@ def grpo_train(
     # common config/state times
     current_step = grpo_save_state["current_step"]  # current step within an epoch
     total_steps = grpo_save_state["total_steps"]  # total steps across all epochs
+
+    # Persistent wandb table for rollout samples — append rows each logging step
+    _wandb_rollout_table = None
+    if logger.wandb_logger is not None and logger.wandb_logger.run is not None:
+        import wandb as _wandb
+        _wandb_rollout_table = _wandb.Table(columns=["step", "reward", "prompt", "response"])
     max_num_steps = master_config["grpo"][
         "max_num_steps"
     ]  # max number of steps to train for
@@ -1599,22 +1605,21 @@ def grpo_train(
                         env_stat_keys = [k for k in rollout_metrics if k.startswith("env/")]
                         if env_stat_keys:
                             print("  📊 Env stats:", {k: f"{rollout_metrics[k]:.4f}" for k in env_stat_keys})
-                        if (
-                            logger.wandb_logger is not None
-                            and logger.wandb_logger.run is not None
-                        ):
+                        if _wandb_rollout_table is not None:
                             import wandb as _wandb
-                            table = _wandb.Table(columns=["step", "reward", "prompt", "response"])
                             msg_logs = repeated_batch["message_log"]
                             n_log = min(num_train_samples_to_print, len(msg_logs))
                             for i in range(n_log):
                                 msgs = msg_logs[i]
                                 prompt = "\n\n".join(m["content"] for m in msgs if m["role"] != "assistant")
                                 response = "\n\n".join(m["content"] for m in msgs if m["role"] == "assistant")
-                                table.add_data(total_steps + 1, rewards_list[i], prompt, response)
-                            logger.wandb_logger.run.log(
-                                {"train/rollout_samples": table}, step=total_steps + 1
+                                _wandb_rollout_table.add_data(total_steps + 1, rewards_list[i], prompt, response)
+                            # Log a copy — wandb requires a new Table object each call
+                            table_copy = _wandb.Table(
+                                columns=_wandb_rollout_table.columns,
+                                data=_wandb_rollout_table.data,
                             )
+                            logger.wandb_logger.run.log({"train/rollout_samples": table_copy})
 
                 repeated_batch = scale_rewards(
                     repeated_batch, master_config["grpo"]["reward_scaling"]
@@ -1720,12 +1725,24 @@ def grpo_train(
                         loss_multiplier[truncated] = 0
                         repeated_batch["loss_multiplier"] = loss_multiplier
                     # Add loss mask to each message in LLMMessageLogType
+                    _think_budget = master_config["policy"]["generation"].get("thinking_token_budget")
+                    _end_think_id = master_config["policy"]["generation"].get(
+                        "end_think_token_id",
+                        tokenizer.convert_tokens_to_ids("</think>"),
+                    )
+                    _num_think_forced = 0
                     for i, message_log in enumerate(repeated_batch["message_log"]):
                         for j, message in enumerate(message_log):
                             if message["role"] == "assistant":
-                                message["token_loss_mask"] = torch.ones_like(
-                                    message["token_ids"]
-                                )
+                                mask = torch.ones_like(message["token_ids"])
+                                if _think_budget is not None:
+                                    tids = message["token_ids"]
+                                    budget = int(_think_budget)
+                                    # Mask out </think> token if it appears exactly at the budget position
+                                    if len(tids) > budget and tids[budget].item() == _end_think_id:
+                                        mask[budget] = 0
+                                        _num_think_forced += 1
+                                message["token_loss_mask"] = mask
                             else:
                                 message["token_loss_mask"] = torch.zeros_like(
                                     message["token_ids"]
@@ -1734,6 +1751,7 @@ def grpo_train(
                                 message["generation_logprobs"] = torch.zeros_like(
                                     message["token_ids"], dtype=torch.float32
                                 )
+                    rollout_metrics["think_forced_rate"] = _num_think_forced / max(1, len(repeated_batch["message_log"]))
 
                     # Convert updated LLMMessageLogType to FlatMessagesType for training
                     flat_messages, input_lengths = batched_message_log_to_flat_message(
@@ -1965,6 +1983,9 @@ def grpo_train(
                         "global_valid_seqs",
                         "global_valid_toks",
                         "mean_prompt_length",
+                        "clip_low",
+                        "clip_high",
+                        "clip_frac",
                     }:
                         metrics[k] = np.mean(v).item()
                     elif isinstance(v, (np.ndarray, list)):
@@ -3014,6 +3035,9 @@ def async_grpo_train(
                         "global_valid_seqs",
                         "global_valid_toks",
                         "mean_prompt_length",
+                        "clip_low",
+                        "clip_high",
+                        "clip_frac",
                     }:
                         metrics[k] = np.mean(v).item()
                     else:

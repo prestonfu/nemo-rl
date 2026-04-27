@@ -263,10 +263,13 @@ def build_chess_datum(
         prompt_template=prompt_template,
     )
 
+    system_prompt = SYSTEM_PROMPT_GUIDED if prompt_style == "guided" else SYSTEM_PROMPT
     rendered_prompt = tokenizer.apply_chat_template(
-        [{"role": "user", "content": prompt}],
+        [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": prompt},
+        ],
         tokenize=False,
-        add_system_prompt=add_system_prompt,
         add_generation_prompt=True,
         add_special_tokens=False,
     ).strip()

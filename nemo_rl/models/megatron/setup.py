@@ -600,8 +600,10 @@ def _create_checkpoint_config(
         load_optim=optimizer_path is not None,
         pretrained_checkpoint=pretrained_path,
         async_save=False,
-        fully_parallel_save=True,
-        fully_parallel_load=True,
+        # Fully-parallel dist checkpoint save/load has shown instability
+        # (CUDA invalid argument) on this NeMo-RL stack; use non-fully-parallel path.
+        fully_parallel_save=False,
+        fully_parallel_load=False,
         load_rng=False,
     )
 
